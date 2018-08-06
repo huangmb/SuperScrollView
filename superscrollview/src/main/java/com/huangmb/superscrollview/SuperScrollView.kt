@@ -120,11 +120,25 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
     var isSmoothScrollingEnabled = true
 
     /**
+     * When true, the scroll view stops on multiples of the scroll view's size
+     * when scrolling. This can be used for horizontal pagination. The default
+     * value is false.
+     */
+    var isPagingEnabled = false
+
+    var horizontalPagingThreshold = 0.5
+    var verticalPagingThreshold = 0.5
+
+
+    /**
      * When true, the ScrollView will try to lock to only vertical or horizontal
      * scrolling while dragging.
      */
     var isDirectionalLockEnabled = false
 
+    private var mActivelyScrolling = false
+
+    private var mPostTouchRunnable: Runnable? = null
     private val configuration = ViewConfiguration.get(context)
     private var mTouchSlop = configuration.scaledTouchSlop
     private var mMinimumVelocity = configuration.scaledMinimumFlingVelocity
@@ -204,6 +218,9 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
             return scrollRange
         }
 
+    val isHorizontal: Boolean
+        get() = childCount > 0 && getChildAt(0).width > (width - paddingLeft - paddingRight)
+
     /**
      * Interface definition for a callback to be invoked when the scroll
      * X or Y positions of a view change.
@@ -231,9 +248,10 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
         initScrollView()
 
         val a = context.obtainStyledAttributes(
-                attrs, SCROLLVIEW_STYLEABLE, defStyleAttr, 0)
+                attrs, R.styleable.SuperScrollView, defStyleAttr, 0)
 
-        isFillViewport = a.getBoolean(0, false)
+        isFillViewport = a.getBoolean(R.styleable.SuperScrollView_isFillViewport, false)
+        isPagingEnabled = a.getBoolean(R.styleable.SuperScrollView_isPagingEnabled, false)
 
         a.recycle()
 
@@ -466,6 +484,8 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
         if (mOnScrollChangeListener != null) {
             mOnScrollChangeListener!!.onScrollChange(this, l, t, oldl, oldt)
         }
+
+        mActivelyScrolling = true
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -563,10 +583,10 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
                     val canScrollVertical = computeVerticalScrollRange() > computeVerticalScrollExtent()
 
                     if (canScrollVertical) {
-                        val direction =  if (event.isShiftPressed) View.FOCUS_UP else View.FOCUS_DOWN
+                        val direction = if (event.isShiftPressed) View.FOCUS_UP else View.FOCUS_DOWN
                         pageScrollVertical(direction)
                     } else {
-                        val direction =  if (event.isShiftPressed) View.FOCUS_LEFT else View.FOCUS_RIGHT
+                        val direction = if (event.isShiftPressed) View.FOCUS_LEFT else View.FOCUS_RIGHT
                         pageScrollHorizontal(direction)
                     }
 
@@ -904,6 +924,7 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
                 }
                 mActivePointerId = INVALID_POINTER
                 endDrag()
+                handlePostTouchScrolling()
             }
             MotionEvent.ACTION_CANCEL -> {
                 if (mIsBeingDragged && childCount > 0) {
@@ -1204,6 +1225,7 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
 
         return scrollAndFocusHorizontal(direction, mTempRect.left, mTempRect.right)
     }
+
     /**
      *
      * Handles scrolling in response to a "home/end" shortcut press. This
@@ -1457,6 +1479,42 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
             setDescendantFocusability(descendantFocusability)  // restore
         }
         return true
+    }
+
+
+    private fun handlePostTouchScrolling() {
+        if (isPagingEnabled) {
+            mActivelyScrolling = false
+            mPostTouchRunnable = PostTouchRunnable()
+            ViewCompat.postOnAnimationDelayed(this, mPostTouchRunnable, MOMENTUM_DELAY)
+        }
+    }
+
+    /**
+     * This will smooth scroll us to the nearest page boundary
+     * It currently just looks at where the content is relative to the page and slides to the nearest
+     * page.  It is intended to be run after we are done scrolling, and handling any momentum
+     * scrolling.
+     */
+    private fun smoothScrollToPage(velocityX: Int = 0, velocityY: Int = 0) {
+        val width = width
+        val currentX = scrollX
+        val predictedX = currentX + velocityX
+        var hpage = currentX / width
+        if (predictedX > hpage * width + width * horizontalPagingThreshold) {
+            hpage += 1
+        }
+
+        val height = height
+        val currentY = scrollY
+        val preY = currentY + velocityY
+        var vpage = currentY / height
+        if (preY > vpage * height + height * verticalPagingThreshold) {
+            vpage += 1
+        }
+
+        smoothScrollTo(hpage * width, vpage * height)
+
     }
 
     /**
@@ -1951,19 +2009,24 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
      * which means we want to scroll towards the top.
      */
     fun fling(velocityX: Int, velocityY: Int) {
-        if (childCount > 0) {
-            val view = getChildAt(0)
-            val width = width - paddingRight - paddingLeft
-            val right = view.width
+        if (isPagingEnabled) {
+            smoothScrollToPage(velocityX, velocityY)
+        } else {
+            if (childCount > 0) {
+                val view = getChildAt(0)
+                val width = width - paddingRight - paddingLeft
+                val right = view.width
 
-            val height = height - paddingBottom - paddingTop
-            val bottom = view.height
+                val height = height - paddingBottom - paddingTop
+                val bottom = view.height
 
-            mScroller.fling(scrollX, scrollY, velocityX, velocityY, 0, max(0, right - width), 0,
-                    max(0, bottom - height), width / 2, height / 2)
+                mScroller.fling(scrollX, scrollY, velocityX, velocityY, 0, max(0, right - width), 0,
+                        max(0, bottom - height), width / 2, height / 2)
 
-            ViewCompat.postInvalidateOnAnimation(this)
+                ViewCompat.postInvalidateOnAnimation(this)
+            }
         }
+        handlePostTouchScrolling()
     }
 
     private fun flingWithNestedDispatch(velocityX: Int, velocityY: Int) {
@@ -2158,6 +2221,30 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
         }
     }
 
+    inner class PostTouchRunnable : Runnable {
+        private var mSnappingToPage = false
+
+        override fun run() {
+            if (mActivelyScrolling) {
+                mActivelyScrolling = false
+                ViewCompat.postOnAnimationDelayed(this@SuperScrollView, this, MOMENTUM_DELAY)
+
+            } else {
+                var doneWithAllScrolling = true
+                if (isPagingEnabled && !mSnappingToPage) {
+                    mSnappingToPage = true
+                    smoothScrollToPage()
+                    doneWithAllScrolling = false
+                }
+                if (doneWithAllScrolling) {
+                    mPostTouchRunnable = null
+                } else {
+                    ViewCompat.postOnAnimationDelayed(this@SuperScrollView, this, MOMENTUM_DELAY)
+                }
+            }
+        }
+    }
+
     internal class AccessibilityDelegate : AccessibilityDelegateCompat() {
         override fun performAccessibilityAction(host: View, action: Int, arguments: Bundle): Boolean {
             if (super.performAccessibilityAction(host, action, arguments)) {
@@ -2243,6 +2330,8 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
 
         private const val TAG = "SuperScrollView"
 
+        const val MOMENTUM_DELAY = 20L
+
         /**
          * Sentinel value for no current active pointer.
          * Used by [.mActivePointerId].
@@ -2250,8 +2339,6 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
         private const val INVALID_POINTER = -1
 
         private val ACCESSIBILITY_DELEGATE = AccessibilityDelegate()
-
-        private val SCROLLVIEW_STYLEABLE = intArrayOf(android.R.attr.fillViewport)
 
         /**
          * Return true if child is a descendant of parent, (or equal to the parent).

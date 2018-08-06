@@ -11,7 +11,7 @@ Feature：
 * 双向滚动 ![](https://img.shields.io/badge/√-brightgreen.svg)
 * 嵌套滚动 ![](https://img.shields.io/badge/√-brightgreen.svg)
 * 缩放(zoomScale,minimumZoomScale,maximumZoomScale)![](https://img.shields.io/badge/coming-brightgreen.svg)
-* 分页(pageingEnabled)![](https://img.shields.io/badge/coming-brightgreen.svg)
+* 分页(pageingEnabled,类似ViewPager)![](https://img.shields.io/badge/√-brightgreen.svg)
 * 锁定方向(directionalLockEnabled)![](https://img.shields.io/badge/coming-brightgreen.svg)
 * 居中(centerContent)![](https://img.shields.io/badge/coming-brightgreen.svg)
 * contentInset![](https://img.shields.io/badge/coming-brightgreen.svg)

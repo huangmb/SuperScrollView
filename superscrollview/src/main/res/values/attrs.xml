@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="SuperScrollView">
+        <attr name="isPagingEnabled" format="boolean"/>
+        <attr name="isFillViewport" format="boolean"/>
+
+    </declare-styleable>
+</resources>
