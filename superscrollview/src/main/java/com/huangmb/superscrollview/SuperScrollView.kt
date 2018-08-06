@@ -42,7 +42,7 @@ import kotlin.math.min
  * Created by bob.huang on 2018/8/05.
  * 类似IOS的UIScrollView,在NestedScrollView的基础上,支持双向滚动,缩放,分页
  */
-class SuperScrollView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) : FrameLayout(context, attrs, defStyleAttr), NestedScrollingParent, NestedScrollingChild, ScrollingView {
+open class SuperScrollView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) : FrameLayout(context, attrs, defStyleAttr), NestedScrollingParent, NestedScrollingChild, ScrollingView {
 
     private var mLastScroll: Long = 0
 
@@ -90,22 +90,6 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
      * When set to true, the scroll view measure its child to make it fill the currently
      * visible area.
      */
-    /**
-     * Indicates whether this ScrollView's content is stretched to fill the viewport.
-     *
-     * @return True if the content fills the viewport, false otherwise.
-     *
-     * @attr ref android.R.styleable#ScrollView_fillViewport
-     */
-    /**
-     * Indicates this ScrollView whether it should stretch its content height to fill
-     * the viewport or not.
-     *
-     * @param fillViewport True to stretch the content's height to the viewport's
-     * boundaries, false otherwise.
-     *
-     * @attr ref android.R.styleable#ScrollView_fillViewport
-     */
     var isFillViewport: Boolean = false
         set(fillViewport) {
             if (fillViewport != isFillViewport) {
@@ -118,6 +102,8 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
      * Whether arrow scrolling is animated.
      */
     var isSmoothScrollingEnabled = true
+
+    var isScrollEnabled = true
 
     /**
      * When true, the scroll view stops on multiples of the scroll view's size
@@ -307,7 +293,7 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
     // NestedScrollingParent
 
     override fun onStartNestedScroll(child: View, target: View, nestedScrollAxes: Int): Boolean {
-        return nestedScrollAxes != 0
+        return nestedScrollAxes != 0 && isScrollEnabled
     }
 
     override fun onNestedScrollAccepted(child: View, target: View, nestedScrollAxes: Int) {
@@ -639,6 +625,9 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
 
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        if (!isScrollEnabled) {
+            return false
+        }
         /*
          * This method JUST determines whether we want to intercept the motion.
          * If we return true, onMotionEvent will be called and we do the actual
@@ -750,6 +739,9 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
     }
 
     override fun onTouchEvent(ev: MotionEvent): Boolean {
+        if (!isScrollEnabled) {
+            return false
+        }
         initVelocityTrackerIfNotExists()
 
         val vtev = MotionEvent.obtain(ev)
