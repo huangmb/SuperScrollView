@@ -28,7 +28,6 @@ import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
-import android.view.ViewGroup.LayoutParams
 import android.view.accessibility.AccessibilityEvent
 import android.view.animation.AnimationUtils
 import android.widget.EdgeEffect
@@ -158,8 +157,11 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
      * @return The maximum amount this scroll view will scroll in response to
      * an arrow event.
      */
-    val maxScrollAmount: Int
+    val maxScrollAmountY: Int
         get() = (MAX_SCROLL_FACTOR * height).toInt()
+
+    val maxScrollAmountX: Int
+        get() = (MAX_SCROLL_FACTOR * width).toInt()
 
     private val verticalScrollFactorCompat: Float
         get() {
@@ -176,6 +178,7 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
             }
             return mVerticalScrollFactor
         }
+
     private val horizontalScrollFactorCompat: Float
         get() = verticalScrollFactorCompat
 
@@ -536,35 +539,37 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
         if (event.action == KeyEvent.ACTION_DOWN) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> handled = if (!event.isAltPressed) {
-                    arrowScroll(View.FOCUS_LEFT)
+                    arrowScrollHorizontal(View.FOCUS_LEFT)
                 } else {
-                    fullScroll(View.FOCUS_LEFT)
+                    fullScrollHorizontal(View.FOCUS_LEFT)
                 }
                 KeyEvent.KEYCODE_DPAD_UP -> handled = if (!event.isAltPressed) {
-                    arrowScroll(View.FOCUS_UP)
+                    arrowScrollVertical(View.FOCUS_UP)
                 } else {
-                    fullScroll(View.FOCUS_UP)
+                    fullScrollVertical(View.FOCUS_UP)
                 }
                 KeyEvent.KEYCODE_DPAD_RIGHT -> handled = if (!event.isAltPressed) {
-                    arrowScroll(View.FOCUS_RIGHT)
+                    arrowScrollHorizontal(View.FOCUS_RIGHT)
                 } else {
-                    fullScroll(View.FOCUS_RIGHT)
+                    fullScrollHorizontal(View.FOCUS_RIGHT)
                 }
                 KeyEvent.KEYCODE_DPAD_DOWN -> handled = if (!event.isAltPressed) {
-                    arrowScroll(View.FOCUS_DOWN)
+                    arrowScrollVertical(View.FOCUS_DOWN)
                 } else {
-                    fullScroll(View.FOCUS_DOWN)
+                    fullScrollVertical(View.FOCUS_DOWN)
                 }
                 KeyEvent.KEYCODE_SPACE -> {
                     val canScrollHorizontal = computeHorizontalScrollRange() > computeHorizontalScrollExtent()
                     val canScrollVertical = computeVerticalScrollRange() > computeVerticalScrollExtent()
 
-                    val direction = if (canScrollVertical) {
-                        if (event.isShiftPressed) View.FOCUS_UP else View.FOCUS_DOWN
+                    if (canScrollVertical) {
+                        val direction =  if (event.isShiftPressed) View.FOCUS_UP else View.FOCUS_DOWN
+                        pageScrollVertical(direction)
                     } else {
-                        if (event.isShiftPressed) View.FOCUS_LEFT else View.FOCUS_RIGHT
+                        val direction =  if (event.isShiftPressed) View.FOCUS_LEFT else View.FOCUS_RIGHT
+                        pageScrollHorizontal(direction)
                     }
-                    pageScroll(direction)
+
                 }
             }
         }
@@ -843,33 +848,36 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
                         val edgeGlowTop = mEdgeGlowTop
                         val edgeGlowRight = mEdgeGlowRight
                         val edgeGlowBottom = mEdgeGlowBottom
-                        val pulledToX = oldX + deltaX
-                        if (pulledToX < 0) {
-                            EdgeEffectCompat.onPull(edgeGlowLeft, deltaX.toFloat() / width,
-                                    1F - ev.getY(activePointerIndex) / height)
-                            if (!edgeGlowRight!!.isFinished) {
-                                edgeGlowRight.onRelease()
-                            }
-                        } else if (pulledToX > rangeX) {
-                            EdgeEffectCompat.onPull(edgeGlowRight, deltaX.toFloat() / width,
-                                    ev.getY(activePointerIndex) / height)
-                            if (!edgeGlowLeft!!.isFinished) {
-                                edgeGlowLeft.onRelease()
+                        if (edgeGlowLeft != null) {
+                            val pulledToX = oldX + deltaX
+                            if (pulledToX < 0) {
+                                EdgeEffectCompat.onPull(edgeGlowLeft, deltaX.toFloat() / width,
+                                        1F - ev.getY(activePointerIndex) / height)
+                                if (!edgeGlowRight!!.isFinished) {
+                                    edgeGlowRight.onRelease()
+                                }
+                            } else if (pulledToX > rangeX) {
+                                EdgeEffectCompat.onPull(edgeGlowRight, deltaX.toFloat() / width,
+                                        ev.getY(activePointerIndex) / height)
+                                if (!edgeGlowLeft.isFinished) {
+                                    edgeGlowLeft.onRelease()
+                                }
                             }
                         }
-
-                        val pulledToY = oldY + deltaY
-                        if (pulledToY < 0) {
-                            EdgeEffectCompat.onPull(edgeGlowTop, deltaY.toFloat() / height,
-                                    ev.getX(activePointerIndex) / width)
-                            if (!edgeGlowBottom!!.isFinished) {
-                                edgeGlowBottom.onRelease()
-                            }
-                        } else if (pulledToY > rangeY) {
-                            EdgeEffectCompat.onPull(edgeGlowBottom, deltaY.toFloat() / height,
-                                    1f - ev.getX(activePointerIndex) / width)
-                            if (!edgeGlowTop!!.isFinished) {
-                                edgeGlowTop.onRelease()
+                        if (edgeGlowTop != null) {
+                            val pulledToY = oldY + deltaY
+                            if (pulledToY < 0) {
+                                EdgeEffectCompat.onPull(edgeGlowTop, deltaY.toFloat() / height,
+                                        ev.getX(activePointerIndex) / width)
+                                if (!edgeGlowBottom!!.isFinished) {
+                                    edgeGlowBottom.onRelease()
+                                }
+                            } else if (pulledToY > rangeY) {
+                                EdgeEffectCompat.onPull(edgeGlowBottom, deltaY.toFloat() / height,
+                                        1f - ev.getX(activePointerIndex) / width)
+                                if (!edgeGlowTop.isFinished) {
+                                    edgeGlowTop.onRelease()
+                                }
                             }
                         }
                         if (edgeGlowTop != null && (!edgeGlowTop.isFinished || !edgeGlowBottom!!.isFinished)
@@ -1136,8 +1144,7 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
      * [android.view.View.FOCUS_DOWN] to go one page down
      * @return true if the key event is consumed by this method, false otherwise
      */
-    fun pageScroll(direction: Int): Boolean {
-        //todo 翻页未适配横向
+    fun pageScrollVertical(direction: Int): Boolean {
         val down = direction == View.FOCUS_DOWN
         val height = height
 
@@ -1158,9 +1165,45 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
         }
         mTempRect.bottom = mTempRect.top + height
 
-        return scrollAndFocus(direction, mTempRect.top, mTempRect.bottom)
+        return scrollAndFocusVertical(direction, mTempRect.top, mTempRect.bottom)
     }
 
+    /**
+     *
+     * Handles scrolling in response to a "page up/down" shortcut press. This
+     * method will scroll the view by one page left or right and give the focus
+     * to the leftmost/rightmost component in the new visible area. If no
+     * component is a good candidate for focus, this scrollview reclaims the
+     * focus.
+     *
+     * @param direction the scroll direction: [android.view.View.FOCUS_LEFT]
+     * to go one page left or [android.view.View.FOCUS_RIGHT]
+     * to go one page right
+     * @return true if the key event is consumed by this method, false otherwise
+     */
+    fun pageScrollHorizontal(direction: Int): Boolean {
+        val right = direction == View.FOCUS_RIGHT
+        val width = width
+
+        if (right) {
+            mTempRect.left = scrollX + width
+            val count = childCount
+            if (count > 0) {
+                val view = getChildAt(0)
+                if (mTempRect.left + width > view.right) {
+                    mTempRect.left = view.right - width
+                }
+            }
+        } else {
+            mTempRect.left = scrollX - width
+            if (mTempRect.left < 0) {
+                mTempRect.left = 0
+            }
+        }
+        mTempRect.right = mTempRect.left + width
+
+        return scrollAndFocusHorizontal(direction, mTempRect.left, mTempRect.right)
+    }
     /**
      *
      * Handles scrolling in response to a "home/end" shortcut press. This
@@ -1174,8 +1217,7 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
      * [android.view.View.FOCUS_DOWN] to go the bottom
      * @return true if the key event is consumed by this method, false otherwise
      */
-    fun fullScroll(direction: Int): Boolean {
-        //TODO 翻页未适配横向
+    fun fullScrollVertical(direction: Int): Boolean {
         val down = direction == View.FOCUS_DOWN
         val height = height
 
@@ -1191,7 +1233,39 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
             }
         }
 
-        return scrollAndFocus(direction, mTempRect.top, mTempRect.bottom)
+        return scrollAndFocusVertical(direction, mTempRect.top, mTempRect.bottom)
+    }
+
+    /**
+     *
+     * Handles scrolling in response to a "home/end" shortcut press. This
+     * method will scroll the view to the left or right and give the focus
+     * to the leftmost/rightmost component in the new visible area. If no
+     * component is a good candidate for focus, this scrollview reclaims the
+     * focus.
+     *
+     * @param direction the scroll direction: [android.view.View.FOCUS_LEFT]
+     * to go the left of the view or [android.view.View.FOCUS_RIGHT]
+     * to go the right
+     * @return true if the key event is consumed by this method, false otherwise
+     */
+    fun fullScrollHorizontal(direction: Int): Boolean {
+        val right = direction == View.FOCUS_RIGHT
+        val width = width
+
+        mTempRect.left = 0
+        mTempRect.right = width
+
+        if (right) {
+            val count = childCount
+            if (count > 0) {
+                val view = getChildAt(0)
+                mTempRect.right = view.right
+                mTempRect.left = mTempRect.right - width
+            }
+        }
+
+        return scrollAndFocusHorizontal(direction, mTempRect.left, mTempRect.right)
     }
 
     /**
@@ -1207,7 +1281,7 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
      * @param bottom    the bottom offset of the new area to be made visible
      * @return true if the key event is consumed by this method, false otherwise
      */
-    private fun scrollAndFocus(direction: Int, top: Int, bottom: Int): Boolean {
+    private fun scrollAndFocusVertical(direction: Int, top: Int, bottom: Int): Boolean {
         var handled = true
 
         val height = height
@@ -1224,12 +1298,108 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
             handled = false
         } else {
             val delta = if (up) top - containerTop else bottom - containerBottom
-            doScrollY(delta)
+            doScroll(0, delta)
         }
 
         if (newFocused !== findFocus()) newFocused.requestFocus(direction)
 
         return handled
+    }
+
+    /**
+     *
+     * Scrolls the view to make the area defined by `left` and
+     * `right` visible. This method attempts to give the focus
+     * to a component visible in this area. If no component can be focused in
+     * the new visible area, the focus is reclaimed by this scrollview.
+     *
+     * @param direction the scroll direction: [android.view.View.FOCUS_LEFT]
+     * to go left [android.view.View.FOCUS_RIGHT] to right
+     * @param left     the left offset of the new area to be made visible
+     * @param right    the right offset of the new area to be made visible
+     * @return true if the key event is consumed by this method, false otherwise
+     */
+    private fun scrollAndFocusHorizontal(direction: Int, left: Int, right: Int): Boolean {
+        var handled = true
+
+        val width = width
+        val containerLeft = scrollX
+        val containerRight = containerLeft + width
+        val goLeft = direction == View.FOCUS_LEFT
+
+        var newFocused = findFocusableViewInBounds(goLeft, left, right)
+        if (newFocused == null) {
+            newFocused = this
+        }
+
+        if (left >= containerLeft && right <= containerRight) {
+            handled = false
+        } else {
+            val delta = if (goLeft) left - containerLeft else right - containerRight
+            doScroll(delta, 0)
+        }
+
+        if (newFocused !== findFocus()) newFocused.requestFocus(direction)
+
+        return handled
+    }
+
+    /**
+     * Handle scrolling in response to a left or right arrow click.
+     *
+     * @param direction The direction corresponding to the arrow key that was
+     *                  pressed
+     * @return True if we consumed the event, false otherwise
+     */
+    fun arrowScrollHorizontal(direction: Int): Boolean {
+        var currentFocused: View? = findFocus()
+        if (currentFocused === this) currentFocused = null
+
+        val nextFocused = FocusFinder.getInstance().findNextFocus(this, currentFocused, direction)
+
+        val maxJump = maxScrollAmountX
+
+        if (nextFocused != null && isWithinDeltaOfScreen(nextFocused, maxJump)) {
+            nextFocused.getDrawingRect(mTempRect)
+            offsetDescendantRectToMyCoords(nextFocused, mTempRect)
+            val scrollDelta = computeScrollDeltaToGetChildRectOnScreen(mTempRect)
+            doScroll(scrollDelta.first, 0)
+            nextFocused.requestFocus(direction)
+        } else {
+            // no new focus
+            var scrollDelta = maxJump
+
+            if (direction == View.FOCUS_LEFT && scrollX < scrollDelta) {
+                scrollDelta = scrollX
+            } else if (direction == View.FOCUS_RIGHT && childCount > 0) {
+
+                val daRight = getChildAt(0).right
+
+                val screenRight = scrollX + width
+
+                if (daRight - screenRight < maxJump) {
+                    scrollDelta = daRight - screenRight
+                }
+            }
+            if (scrollDelta == 0) {
+                return false
+            }
+            doScroll(if (direction == View.FOCUS_RIGHT) scrollDelta else -scrollDelta, 0)
+        }
+
+        if (currentFocused != null && currentFocused.isFocused
+                && isOffScreen(currentFocused)) {
+            // previously focused item still has focus and is off screen, give
+            // it up (take it back to ourselves)
+            // (also, need to temporarily force FOCUS_BEFORE_DESCENDANTS so we are
+            // sure to
+            // get it)
+            val descendantFocusability = descendantFocusability  // save
+            setDescendantFocusability(ViewGroup.FOCUS_BEFORE_DESCENDANTS)
+            requestFocus()
+            setDescendantFocusability(descendantFocusability)  // restore
+        }
+        return true
     }
 
     /**
@@ -1239,20 +1409,19 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
      * pressed
      * @return True if we consumed the event, false otherwise
      */
-    fun arrowScroll(direction: Int): Boolean {
-//TODO 反向键滚动未适配横向
+    fun arrowScrollVertical(direction: Int): Boolean {
         var currentFocused: View? = findFocus()
         if (currentFocused === this) currentFocused = null
 
         val nextFocused = FocusFinder.getInstance().findNextFocus(this, currentFocused, direction)
 
-        val maxJump = maxScrollAmount
+        val maxJump = maxScrollAmountY
 
-        if (nextFocused != null && isWithinDeltaOfScreen(nextFocused, maxJump, height)) {
+        if (nextFocused != null && isWithinDeltaOfScreen(nextFocused, maxJump)) {
             nextFocused.getDrawingRect(mTempRect)
             offsetDescendantRectToMyCoords(nextFocused, mTempRect)
             val scrollDelta = computeScrollDeltaToGetChildRectOnScreen(mTempRect)
-            doScrollY(scrollDelta.second)
+            doScroll(0, scrollDelta.second)
             nextFocused.requestFocus(direction)
         } else {
             // no new focus
@@ -1272,7 +1441,7 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
             if (scrollDelta == 0) {
                 return false
             }
-            doScrollY(if (direction == View.FOCUS_DOWN) scrollDelta else -scrollDelta)
+            doScroll(0, if (direction == View.FOCUS_DOWN) scrollDelta else -scrollDelta)
         }
 
         if (currentFocused != null && currentFocused.isFocused
@@ -1295,31 +1464,33 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
      * screen.
      */
     private fun isOffScreen(descendant: View): Boolean {
-        return !isWithinDeltaOfScreen(descendant, 0, height)
+        return !isWithinDeltaOfScreen(descendant)
     }
 
     /**
      * @return whether the descendant of this scroll view is within delta
      * pixels of being on the screen.
      */
-    private fun isWithinDeltaOfScreen(descendant: View, delta: Int, height: Int): Boolean {
+    private fun isWithinDeltaOfScreen(descendant: View, delta: Int = 0, width: Int = getWidth(), height: Int = getHeight()): Boolean {
         descendant.getDrawingRect(mTempRect)
         offsetDescendantRectToMyCoords(descendant, mTempRect)
 
-        return mTempRect.bottom + delta >= scrollY && mTempRect.top - delta <= scrollY + height
+        return (mTempRect.right + delta >= scrollX && mTempRect.left - delta <= scrollX + width)
+                && mTempRect.bottom + delta >= scrollY && mTempRect.top - delta <= scrollY + height
     }
 
     /**
-     * Smooth scroll by a Y delta
+     * Smooth scroll by a X/Y delta
      *
-     * @param delta the number of pixels to scroll by on the Y axis
+     * @param deltaX the number of pixels to scroll by on the X axis
+     * @param deltaY the number of pixels to scroll by on the Y axis
      */
-    private fun doScrollY(delta: Int) {
-        if (delta != 0) {
+    private fun doScroll(deltaX: Int, deltaY: Int) {
+        if (deltaX != 0 || deltaY != 0) {
             if (isSmoothScrollingEnabled) {
-                smoothScrollBy(scrollX, delta)
+                smoothScrollBy(deltaX, deltaY)
             } else {
-                scrollBy(scrollX, delta)
+                scrollBy(deltaX, deltaY)
             }
         }
     }
@@ -1437,7 +1608,9 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
 
         val childWidthMeasureSpec = if (lp.width == LayoutParams.MATCH_PARENT) {
             getChildMeasureSpec(parentWidthMeasureSpec, paddingLeft + paddingRight, lp.width)
-        } else {MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)}
+        } else {
+            MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        }
         val childHeightMeasureSpec = if (lp.height == LayoutParams.MATCH_PARENT) {
             ViewGroup.getChildMeasureSpec(parentHeightMeasureSpec, paddingTop + paddingBottom, lp.height)
         } else {
@@ -1453,7 +1626,9 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
 
         val childWidthMeasureSpec = if (lp.width == LayoutParams.MATCH_PARENT) {
             getChildMeasureSpec(parentWidthMeasureSpec, paddingLeft + paddingRight + lp.leftMargin + lp.rightMargin + widthUsed, lp.width)
-        } else {MeasureSpec.makeMeasureSpec(+ lp.leftMargin + lp.rightMargin, View.MeasureSpec.UNSPECIFIED)}
+        } else {
+            MeasureSpec.makeMeasureSpec(+lp.leftMargin + lp.rightMargin, View.MeasureSpec.UNSPECIFIED)
+        }
         val childHeightMeasureSpec = if (lp.height == LayoutParams.MATCH_PARENT) {
             ViewGroup.getChildMeasureSpec(parentHeightMeasureSpec, paddingTop + paddingBottom + lp.topMargin + lp.bottomMargin + heightUsed, lp.height)
         } else {
@@ -1760,11 +1935,11 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
         // If the currently-focused view was visible on the screen when the
         // screen was at the old height, then scroll the screen to make that
         // view visible with the new screen height.
-        if (isWithinDeltaOfScreen(currentFocused, 0, oldh)) {
+        if (isWithinDeltaOfScreen(currentFocused, 0, oldw, oldh)) {
             currentFocused.getDrawingRect(mTempRect)
             offsetDescendantRectToMyCoords(currentFocused, mTempRect)
             val scrollDelta = computeScrollDeltaToGetChildRectOnScreen(mTempRect)
-            doScrollY(scrollDelta.second)
+            doScroll(scrollDelta.first, scrollDelta.second)
         }
     }
 
@@ -1814,6 +1989,10 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
             mEdgeGlowTop!!.onRelease()
             mEdgeGlowBottom!!.onRelease()
         }
+        if (mEdgeGlowLeft != null) {
+            mEdgeGlowLeft!!.onRelease()
+            mEdgeGlowRight!!.onRelease()
+        }
     }
 
     /**
@@ -1823,13 +2002,11 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
      * This version also clamps the scrolling to the bounds of our child.
      */
     override fun scrollTo(x: Int, y: Int) {
-        var x = x
-        var y = y
         // we rely on the fact the View.scrollBy calls scrollTo.
         if (childCount > 0) {
             val child = getChildAt(0)
-            x = clamp(x, width - paddingRight - paddingLeft, child.width)
-            y = clamp(y, height - paddingBottom - paddingTop, child.height)
+            val x = clamp(x, width - paddingRight - paddingLeft, child.width)
+            val y = clamp(y, height - paddingBottom - paddingTop, child.height)
             if (x != scrollX || y != scrollY) {
                 super.scrollTo(x, y)
             }
@@ -1839,11 +2016,11 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
     private fun ensureGlows() {
         if (overScrollMode != OVER_SCROLL_NEVER) {
             val context = context
-            if (mEdgeGlowTop == null) {
+            if (mEdgeGlowTop == null && scrollRangeY > 0) {
                 mEdgeGlowTop = EdgeEffect(context)
                 mEdgeGlowBottom = EdgeEffect(context)
             }
-            if (mEdgeGlowLeft == null) {
+            if (mEdgeGlowLeft == null && scrollRangeX > 0) {
                 mEdgeGlowLeft = EdgeEffect(context)
                 mEdgeGlowRight = EdgeEffect(context)
             }
@@ -1858,29 +2035,34 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
     override fun draw(canvas: Canvas) {
         super.draw(canvas)
         val edgeGlowTop = mEdgeGlowTop
+        val scrollX = scrollX
+        val scrollY = scrollY
         if (edgeGlowTop != null) {
-            val scrollY = scrollY
+            val paddingLeft = paddingLeft
+            val paddingRight = paddingRight
+
             if (!edgeGlowTop.isFinished) {
                 val restoreCount = canvas.save()
                 val width = width - paddingLeft - paddingRight
 
-                canvas.translate(paddingLeft.toFloat(), Math.min(0, scrollY).toFloat())
+                canvas.translate((paddingLeft + scrollX).toFloat(), Math.min(0, scrollY).toFloat())
                 edgeGlowTop.setSize(width, height)
                 if (edgeGlowTop.draw(canvas)) {
                     ViewCompat.postInvalidateOnAnimation(this)
                 }
                 canvas.restoreToCount(restoreCount)
             }
-            if (!mEdgeGlowBottom!!.isFinished) {
+            val edgeGlowBottom = mEdgeGlowBottom!!
+            if (!edgeGlowBottom.isFinished) {
                 val restoreCount = canvas.save()
                 val width = width - paddingLeft - paddingRight
                 val height = height
 
-                canvas.translate((-width + paddingLeft).toFloat(),
+                canvas.translate((-width + paddingLeft + scrollX).toFloat(),
                         (max(scrollRangeY, scrollY) + height).toFloat())
                 canvas.rotate(180f, width.toFloat(), 0f)
-                mEdgeGlowBottom!!.setSize(width, height)
-                if (mEdgeGlowBottom!!.draw(canvas)) {
+                edgeGlowBottom.setSize(width, height)
+                if (edgeGlowBottom.draw(canvas)) {
                     ViewCompat.postInvalidateOnAnimation(this)
                 }
                 canvas.restoreToCount(restoreCount)
@@ -1888,26 +2070,28 @@ class SuperScrollView @JvmOverloads constructor(context: Context, attrs: Attribu
         }
         val edgeGlowLeft = mEdgeGlowLeft
         if (edgeGlowLeft != null) {
-            val scrollX = scrollX
+            val paddingTop = paddingTop
+            val paddingBottom = paddingBottom
+
             if (!edgeGlowLeft.isFinished) {
                 val restoreCount = canvas.save()
                 val height = height - paddingTop - paddingBottom
                 canvas.rotate(270f)
-                canvas.translate(-height + paddingTop.toFloat(), min(0, scrollX).toFloat())
+                canvas.translate(-height + paddingTop.toFloat() - scrollY, min(0, scrollX).toFloat())
                 edgeGlowLeft.setSize(height, width)
                 if (edgeGlowLeft.draw(canvas)) {
                     ViewCompat.postInvalidateOnAnimation(this)
                 }
                 canvas.restoreToCount(restoreCount)
             }
-            val edgeGlowRight = mEdgeGlowRight
-            if (!edgeGlowRight!!.isFinished) {
+            val edgeGlowRight = mEdgeGlowRight!!
+            if (!edgeGlowRight.isFinished) {
                 val restoreCount = canvas.save()
                 val width = width
                 val height = height - paddingTop - paddingBottom
 
                 canvas.rotate(90f)
-                canvas.translate(-paddingTop.toFloat(), -(max(scrollRangeX, scrollX) + width).toFloat())
+                canvas.translate(scrollY - paddingTop.toFloat(), -(max(scrollRangeX, scrollX) + width).toFloat())
                 edgeGlowRight.setSize(height, width)
                 if (edgeGlowRight.draw(canvas)) {
                     ViewCompat.postInvalidateOnAnimation(this)
