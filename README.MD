@@ -1,4 +1,5 @@
-#SuperScrollView
+# SuperScrollView  
+
 
 ![Kotlin](https://img.shields.io/badge/language-Kotlin-orange.svg)
 ![](https://img.shields.io/badge/platform-Android-lightgrey.svg)
@@ -16,5 +17,5 @@ Feature：
 * contentInset![](https://img.shields.io/badge/coming-brightgreen.svg)
 * contentInset![](https://img.shields.io/badge/coming-brightgreen.svg)
 * contentOffset![](https://img.shields.io/badge/coming-brightgreen.svg)
-
+* keyboardDismissMode![](https://img.shields.io/badge/coming-brightgreen.svg)
 
