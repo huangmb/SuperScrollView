@@ -103,6 +103,9 @@ open class SuperScrollView @JvmOverloads constructor(context: Context, attrs: At
      */
     var isSmoothScrollingEnabled = true
 
+    /**
+     * Whether scroll is enabled. Nested scroll will also disable if set false
+     */
     var isScrollEnabled = true
 
     /**
@@ -232,7 +235,6 @@ open class SuperScrollView @JvmOverloads constructor(context: Context, attrs: At
 
     init {
         initScrollView()
-
         val a = context.obtainStyledAttributes(
                 attrs, R.styleable.SuperScrollView, defStyleAttr, 0)
 
@@ -298,7 +300,7 @@ open class SuperScrollView @JvmOverloads constructor(context: Context, attrs: At
 
     override fun onNestedScrollAccepted(child: View, target: View, nestedScrollAxes: Int) {
         mParentHelper.onNestedScrollAccepted(child, target, nestedScrollAxes)
-        startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL and ViewCompat.SCROLL_AXIS_HORIZONTAL)
+        startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL or ViewCompat.SCROLL_AXIS_HORIZONTAL)
     }
 
     override fun onStopNestedScroll(target: View) {
@@ -703,7 +705,7 @@ open class SuperScrollView @JvmOverloads constructor(context: Context, attrs: At
                  */
                 mLastMotionX = x
                 mLastMotionY = y
-                mActivePointerId = MotionEventCompat.getPointerId(ev, 0)
+                mActivePointerId = ev.getPointerId(0)
 
                 initOrResetVelocityTracker()
                 mVelocityTracker!!.addMovement(ev)
@@ -715,7 +717,7 @@ open class SuperScrollView @JvmOverloads constructor(context: Context, attrs: At
                  */
                 mScroller.computeScrollOffset()
                 mIsBeingDragged = !mScroller.isFinished
-                startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL and ViewCompat.SCROLL_AXIS_HORIZONTAL)
+                startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL or ViewCompat.SCROLL_AXIS_HORIZONTAL)
             }
 
             MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_UP -> {
@@ -777,7 +779,7 @@ open class SuperScrollView @JvmOverloads constructor(context: Context, attrs: At
                 mLastMotionX = ev.x.toInt()
                 mLastMotionY = ev.y.toInt()
                 mActivePointerId = ev.getPointerId(0)
-                startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL)
+                startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL or ViewCompat.SCROLL_AXIS_HORIZONTAL)
             }
             MotionEvent.ACTION_MOVE -> move@ {
                 val activePointerIndex = ev.findPointerIndex(mActivePointerId)
